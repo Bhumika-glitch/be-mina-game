@@ -1,2 +1,547 @@
 # be-mina-game
 Interactive comic on Moscovici's minority influence theory
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Be Mina</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400;500;600&family=Patrick+Hand&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout concept: one comic panel (scene on top, ten neighbours below, each with a "says" bubble and a "thinks" dot), then Mina's line, a narration box and the move chooser. After day 5 the result cards stack underneath. */
+:root {
+  --bg: #E6E9F2;
+  --surface: #F6F7FB;
+  --ink: #161A2C;
+  --muted: #4A5170;
+  --line: #BCC3D8;
+  --outline: #0D1020;
+  --sky: #CFE1EE;
+  --dot: #B3CBDD;
+  --ground: #8E9BB5;
+  --tower: #4C5B7E;
+  --on-tower: #FFFFFF;
+  --face: #FFFFFF;
+  --head: #D6A07A;
+  --coat: #2A3355;
+  --town: #5F6F94;
+  --hat: #3B3550;
+  --scarf: #D6352E;
+  --on-scarf: #FFFFFF;
+  --amber: #E0A02B;
+  --on-amber: #161A2C;
+  --cap-bg: #FFE9A6;
+  --cap-ink: #1B1B2A;
+  --bubble: #FFFFFF;
+  --bubble-ink: #161A2C;
+  --link: #B01F19;
+  --font-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-comic: "Patrick Hand", "Comic Sans MS", "Segoe Print", cursive;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1120; --surface: #171B30; --ink: #EDEFFA; --muted: #A3AAC8; --line: #2C3355;
+    --outline: #070914; --sky: #1F3148; --dot: #2A4260; --ground: #2B3453; --tower: #6C7DA8; --on-tower: #0E1120;
+    --face: #F4F5FA; --coat: #8FA0D6; --town: #7C8CB8; --hat: #4A4468; --scarf: #F2554C; --on-scarf: #20090A;
+    --amber: #F0B544; --link: #FF8A82; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1120; --surface: #171B30; --ink: #EDEFFA; --muted: #A3AAC8; --line: #2C3355;
+  --outline: #070914; --sky: #1F3148; --dot: #2A4260; --ground: #2B3453; --tower: #6C7DA8; --on-tower: #0E1120;
+  --face: #F4F5FA; --coat: #8FA0D6; --town: #7C8CB8; --hat: #4A4468; --scarf: #F2554C; --on-scarf: #20090A;
+  --amber: #F0B544; --link: #FF8A82; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 16px/1.55 var(--font-body);
+  padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 22px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.05; }
+h1 { font-size: clamp(2.8rem, 9vw, 5rem); font-weight: 800; letter-spacing: -0.025em; }
+h2 { font-size: clamp(1.4rem, 3.4vw, 1.9rem); font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; max-width: 66ch; }
+a { color: var(--link); }
+:focus-visible { outline: 3px solid var(--scarf); outline-offset: 3px; border-radius: 4px; }
+.eyebrow { font: 500 0.74rem var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.note { font-size: 0.86rem; color: var(--muted); max-width: 70ch; }
+
+header.hero { display: grid; gap: 14px; }
+header.hero h1 span { color: var(--scarf); }
+.lede { font-size: clamp(1.05rem, 2.2vw, 1.25rem); line-height: 1.45; max-width: 52ch; }
+
+/* The comic panel */
+.panel { background: var(--surface); border: 4px solid var(--outline); border-radius: 4px; box-shadow: 6px 6px 0 var(--outline); display: grid; gap: 0; overflow: hidden; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 3px solid var(--outline); background: var(--surface); }
+.pips { display: flex; gap: 6px; align-items: center; }
+.pip { width: 26px; height: 10px; border: 2px solid var(--outline); background: transparent; }
+.pip.done { background: var(--ink); }
+.pip.now { background: var(--scarf); }
+.daylabel { font: 500 0.78rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.toggle { font: 500 0.82rem var(--font-body); color: var(--ink); background: var(--bg); border: 2px solid var(--outline); border-radius: 4px; padding: 6px 10px; cursor: pointer; min-height: 36px; }
+.toggle[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.scene { display: block; width: 100%; height: auto; background: var(--sky); border-bottom: 3px solid var(--outline); }
+.scene text { font-family: var(--font-mono); font-weight: 500; }
+.townbox { padding: 16px 14px 10px; display: grid; gap: 12px; background: var(--surface); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 0.82rem; color: var(--muted); }
+.legend .lg { display: inline-flex; gap: 6px; align-items: center; }
+ul.town { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; list-style: none; margin: 0; padding: 0; }
+@media (max-width: 760px) { ul.town { grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 18px; } }
+.nb { display: grid; justify-items: center; gap: 8px; min-width: 0; text-align: center; }
+.say {
+  font: 400 1.02rem/1.1 var(--font-comic); background: var(--bubble); color: var(--bubble-ink);
+  border: 2px solid var(--outline); border-radius: 10px; padding: 3px 4px; width: 100%; max-width: 84px; min-height: 28px;
+  display: grid; place-items: center; position: relative; transition: background .3s, color .3s;
+}
+.say::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 10px; background: inherit; border-right: 2px solid var(--outline); border-bottom: 2px solid var(--outline); transform: translateX(-50%) rotate(45deg); }
+.say.nt::after { display: none; }
+.say.slow { background: var(--scarf); color: var(--on-scarf); }
+.say.never { background: var(--ink); color: var(--bg); }
+.fig { width: 42px; height: auto; display: block; }
+.think { display: grid; justify-items: center; gap: 2px; }
+.dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 600 0.95rem/1 var(--font-mono); border: 2px solid var(--outline); transition: background .3s; }
+.dot.sure { background: var(--surface); color: var(--ink); border-style: dashed; }
+.dot.unsure { background: var(--amber); color: var(--on-amber); }
+.dot.sees { background: var(--scarf); color: var(--on-scarf); }
+.dot.digs { background: var(--ink); color: var(--bg); }
+.tl { font: 500 0.6rem var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+ul.town.hide .think { visibility: hidden; }
+.stat { font: 500 0.84rem var(--font-mono); display: flex; flex-wrap: wrap; gap: 4px 18px; border-top: 2px dashed var(--line); padding-top: 10px; }
+
+.talk { padding: 14px; display: grid; gap: 12px; border-top: 3px solid var(--outline); background: var(--surface); }
+.mina { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+.tag { font: 500 0.72rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; background: var(--scarf); color: var(--on-scarf); padding: 3px 8px; border: 2px solid var(--outline); margin-top: 4px; }
+.mina q { quotes: none; font: 400 1.35rem/1.25 var(--font-comic); display: block; background: var(--bubble); color: var(--bubble-ink); border: 2px solid var(--outline); border-radius: 12px; padding: 8px 14px; }
+.narr { font: 400 1.18rem/1.35 var(--font-comic); background: var(--cap-bg); color: var(--cap-ink); border: 3px solid var(--outline); padding: 10px 14px; max-width: none; }
+
+.controls { display: grid; gap: 12px; }
+.q { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
+.moves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .moves { grid-template-columns: minmax(0, 1fr); } }
+.move { text-align: left; font: inherit; color: var(--ink); background: var(--surface); border: 3px solid var(--outline); border-radius: 4px; padding: 12px 14px; cursor: pointer; display: grid; gap: 2px; min-height: 64px; box-shadow: 4px 4px 0 var(--outline); transition: transform .08s, box-shadow .08s; }
+.move:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--outline); }
+.move:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--outline); }
+.move b { font-family: var(--font-display); font-size: 1.05rem; }
+.move span { font-size: 0.88rem; color: var(--muted); }
+.btn { font: 600 1rem var(--font-body); color: var(--on-scarf); background: var(--scarf); border: 3px solid var(--outline); border-radius: 4px; padding: 10px 18px; cursor: pointer; min-height: 46px; box-shadow: 4px 4px 0 var(--outline); justify-self: start; }
+.btn.alt { background: var(--surface); color: var(--ink); }
+.btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--outline); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.research { border-left: 5px solid var(--scarf); background: var(--surface); padding: 10px 14px; display: grid; gap: 4px; }
+.research .eyebrow { color: var(--link); }
+.research p { font-size: 0.95rem; }
+
+/* Results */
+.card { background: var(--surface); border: 3px solid var(--outline); border-radius: 4px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.verdict { font: 800 clamp(1.6rem, 4.6vw, 2.4rem)/1.08 var(--font-display); letter-spacing: -0.015em; text-wrap: balance; }
+.why { margin: 0; padding-left: 1.1rem; display: grid; gap: 8px; max-width: 70ch; }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.bars { display: grid; gap: 12px; }
+.brow { display: grid; gap: 4px; }
+.brow .l { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.9rem; }
+.brow .l span:last-child { font: 500 0.82rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.track { height: 16px; border: 2px solid var(--outline); background: var(--bg); position: relative; }
+.track i { position: absolute; inset: 0 auto 0 0; background: var(--scarf); }
+.scale { display: flex; justify-content: space-between; font: 500 0.68rem var(--font-mono); color: var(--muted); }
+.scroll { overflow-x: auto; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 0.7rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+ul.plain { margin: 0; padding-left: 1.1rem; display: grid; gap: 7px; max-width: 72ch; }
+footer { border-top: 3px solid var(--outline); padding-top: 18px; display: grid; gap: 8px; font-size: 0.88rem; }
+footer p { max-width: 84ch; }
+@media (prefers-reduced-motion: reduce) { .say, .dot, .move { transition: none; } }
+</style>
+
+<div class="wrap">
+<header class="hero">
+  <p class="eyebrow">Interactive comic · Minority influence</p>
+  <h1>Be <span>Mina</span></h1>
+  <p class="lede">Every slide on the screen is blue, and everyone in the room says so. You are Mina, one of two planted voices in a colour study like Moscovici’s 1969 experiment, and your job is to call the blue slide green. For five days, decide how Mina behaves, and watch what the room says out loud and what it privately shifts toward.</p>
+</header>
+
+<main class="wrap" style="padding:0;width:100%">
+  <section class="panel" aria-label="Comic panel">
+    <div class="bar">
+      <div class="pips" id="pips" aria-hidden="true"></div>
+      <span class="daylabel" id="daylabel">Before day 1</span>
+      <button type="button" class="toggle" id="hideThoughts" aria-pressed="false">Hide what they think</button>
+    </div>
+    <svg class="scene" id="scene" viewBox="0 0 800 270" role="img" aria-label="A room with a projector screen showing a blue slide. Mina stands on a painted X at the left.">
+      <defs>
+        <pattern id="halftone" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.2" fill="var(--dot)"/><circle cx="11" cy="11" r="2.2" fill="var(--dot)"/></pattern>
+      </defs>
+      <rect width="800" height="270" fill="var(--sky)"/>
+      <rect width="800" height="220" fill="url(#halftone)"/>
+      <rect y="220" width="800" height="50" fill="var(--ground)"/>
+      <line x1="0" y1="220" x2="800" y2="220" stroke="var(--outline)" stroke-width="4"/>
+      <rect x="394" y="8" width="12" height="22" fill="var(--tower)" stroke="var(--outline)" stroke-width="3"/>
+      <rect x="290" y="28" width="220" height="150" rx="6" fill="#2b6cb0" stroke="var(--outline)" stroke-width="5"/>
+      <text x="400" y="108" text-anchor="middle" font-size="26" fill="#ffffff">THE SLIDE</text>
+      <text x="400" y="136" text-anchor="middle" font-size="14" fill="#ffffff">it is blue</text>
+      <rect x="396" y="178" width="8" height="42" fill="var(--tower)" stroke="var(--outline)" stroke-width="3"/>
+      <g id="spot" style="transform: translate(210px, 236px)">
+        <path d="M-16 -2 L16 14 M16 -2 L-16 14" stroke="var(--scarf)" stroke-width="6" stroke-linecap="round" fill="none"/>
+      </g>
+      <g id="mina" style="transform: translate(210px, 232px)"></g>
+      <g id="priya" style="transform: translate(700px, 232px); transition: transform .9s ease"></g>
+    </svg>
+    <div class="townbox">
+      <div class="legend" aria-hidden="false">
+        <span class="lg"><span class="say nt" style="width:auto;padding:2px 10px;min-height:0;display:inline-block">Blue.</span> what they say out loud</span>
+        <span class="lg"><span class="dot sure" style="width:22px;height:22px;font-size:.75rem">–</span> sure</span>
+        <span class="lg"><span class="dot unsure" style="width:22px;height:22px;font-size:.75rem">?</span> unsure</span>
+        <span class="lg"><span class="dot sees" style="width:22px;height:22px;font-size:.75rem">✓</span> leans green in private</span>
+        <span class="lg"><span class="dot digs" style="width:22px;height:22px;font-size:.75rem">x</span> digs in</span>
+      </div>
+      <ul class="town" id="town" aria-label="The ten people in the room"></ul>
+      <div class="stat" id="stat" aria-live="polite"></div>
+    </div>
+    <div class="talk">
+      <div class="mina" id="minaRow" hidden><span class="tag">Mina</span><q id="minaLine"></q></div>
+      <p class="narr" id="narr" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="controls" id="controls">
+    <div id="c-intro">
+      <p class="note" style="margin-bottom:12px">Bubbles show what the room says out loud. The dots underneath show what they think. This is a story model built from two Moscovici studies, not data. The lab figures it is based on are at the end.</p>
+      <button type="button" class="btn" id="start">Start Day 1</button>
+    </div>
+    <div id="c-priya" hidden>
+      <p class="q" style="margin-bottom:10px">Priya offers to stand with you. Say yes?</p>
+      <div class="row">
+        <button type="button" class="btn" id="yesP">Yes, stand together</button>
+        <button type="button" class="btn alt" id="noP">No, go alone</button>
+      </div>
+    </div>
+    <div id="c-move" hidden>
+      <p class="q" style="margin-bottom:10px" id="moveQ">What does Mina do today?</p>
+      <div class="moves" id="moves"></div>
+    </div>
+    <div id="c-next" hidden>
+      <div class="research" id="research"></div>
+      <button type="button" class="btn" id="next" style="margin-top:12px">Next day</button>
+    </div>
+  </section>
+
+  <div id="end" hidden style="display:grid;gap:18px"></div>
+</main>
+
+<footer>
+  <h3>References</h3>
+  <p>Hewstone, M., Stroebe, W., &amp; Jonas, K. (Eds.). (2012). Chapter 8: Social influence. In <i>An introduction to social psychology</i>. BPS Blackwell.</p>
+  <p>Moscovici, S., Lage, E., &amp; Naffrechoux, M. (1969). Influence of a consistent minority on the responses of a majority in a color perception task. <i>Sociometry, 32</i>(4), 365–380. <a href="https://doi.org/10.2307/2786541" target="_blank" rel="noopener">https://doi.org/10.2307/2786541</a></p>
+  <p>Moscovici, S., &amp; Personnaz, B. (1980). Studies in social influence: V. Minority influence and conversion behavior in a perceptual task. <i>Journal of Experimental Social Psychology, 16</i>(3), 270–282. <a href="https://doi.org/10.1016/0022-1031(80)90070-0" target="_blank" rel="noopener">https://doi.org/10.1016/0022-1031(80)90070-0</a></p>
+  <p>Page numbers in the notes follow the journal pagination of these two papers.</p>
+</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var N = 10;
+  var BASE = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95];
+  var ORDER = [6, 2, 8, 0, 4, 9, 1, 5, 3, 7];
+  var runs = [];
+  var S;
+
+  var MOVES = [
+    { id: 'same', tag: 'S', title: 'Same line, same spot', sub: 'Say it again, exactly as yesterday.',
+      line: 'It is green.',
+      note: 'Consistency is what the 1969 study varied. Two confederates who said green on all 36 slides drew green answers on 8.42% of responses (Moscovici, Lage, & Naffrechoux, 1969).' },
+    { id: 'check', tag: 'C', title: 'Same line, then ask them to look', sub: 'Repeat it and invite them to look at the slide again.',
+      line: 'It is green. Look at the slide again yourself.',
+      note: 'The 1980 paper argues that a persistent minority makes people test its answer against the thing itself, which it calls a validation process. Majority answers are mostly compared with one’s own judgment instead (Moscovici & Personnaz, 1980, pp. 271–272).' },
+    { id: 'push', tag: 'P', title: 'Turn up the pressure', sub: 'Call them fools. Demand they admit it is green.',
+      line: 'You are all wrong! It is GREEN!',
+      note: 'The 1969 paper expects an uncompromising minority to create anxiety, so that people either concede or polarize (pp. 367, 376). Three participants polarized (p. 372).' },
+    { id: 'switch', tag: 'W', title: 'Change the line', sub: 'Say something different today to suit the crowd.',
+      line: '',
+      note: 'When the confederates said green on 24 slides and blue on 12, green answers fell to 1.25%, close to the 0.25% of the control group (Moscovici et al., 1969, p. 372).' }
+  ];
+  var SWITCH_LINES = ['Maybe it is a bit blue-green?', 'Perhaps it is blue after all.', 'I might have misjudged it.', 'Green. Or blue. Hard to say.', 'Forget I said anything.'];
+
+  function fresh() {
+    var res = ORDER.map(function (k) { return Math.min(0.98, Math.max(0.02, BASE[k] + (Math.random() - 0.5) * 0.08)); });
+    return { screen: 'intro', day: 0, alone: true, streak: 0, switches: 0, moves: [], togetherFrom: 0, res: res,
+             d: res.map(function () { return 0; }), h: res.map(function () { return 0; }), done: false };
+  }
+  function think(i) { if (S.h[i] >= 0.3) return 'digs'; if (S.d[i] >= 0.7) return 'sees'; if (S.d[i] >= 0.35) return 'unsure'; return 'sure'; }
+  function pub(i) { if (S.h[i] >= 0.3) return 'never'; if (S.d[i] >= 0.9 && S.res[i] < 0.25) return 'slow'; return 'right'; }
+  function stats() {
+    var c = { slow: 0, sees: 0, unsure: 0, sure: 0, digs: 0 };
+    for (var i = 0; i < N; i++) { c[think(i)]++; if (pub(i) === 'slow') c.slow++; }
+    return c;
+  }
+  function applyMove(id) {
+    var D = S.alone ? 0.75 : 0.25;
+    if (id === 'switch') { S.streak = 0; S.switches++; } else { S.streak++; }
+    var mult = Math.min(1.45, 1 + 0.15 * Math.max(0, S.streak - 1));
+    for (var i = 0; i < N; i++) {
+      var r = S.res[i], open = 1 - 0.8 * r;
+      if (id === 'switch') { S.d[i] = Math.max(0, S.d[i] - 0.12); }
+      else if (id === 'same') { S.d[i] += 0.18 * mult * open * (1 - D); }
+      else if (id === 'check') { S.d[i] += 0.26 * mult * open * (1 - D); }
+      else if (id === 'push') {
+        if (r < 0.5) { S.d[i] += 0.10 * mult * open * (1 - D); }
+        else { S.h[i] += 0.2; S.d[i] = Math.max(0, S.d[i] - 0.05); }
+      }
+      S.d[i] = Math.min(1, S.d[i]);
+    }
+    S.moves.push(id);
+  }
+
+  /* Drawing */
+  function clockFace(cx, cy, r, h, m) {
+    var ma = m * 6, ha = (h % 12) * 30 + m * 0.5;
+    function pt(a, l) { return [cx + l * Math.sin(a * Math.PI / 180), cy - l * Math.cos(a * Math.PI / 180)]; }
+    var mp = pt(ma, r * 0.78), hp = pt(ha, r * 0.5);
+    return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="var(--face)" stroke="var(--outline)" stroke-width="4"/>' +
+      '<line x1="' + cx + '" y1="' + cy + '" x2="' + hp[0].toFixed(1) + '" y2="' + hp[1].toFixed(1) + '" stroke="var(--outline)" stroke-width="5" stroke-linecap="round"/>' +
+      '<line x1="' + cx + '" y1="' + cy + '" x2="' + mp[0].toFixed(1) + '" y2="' + mp[1].toFixed(1) + '" stroke="var(--outline)" stroke-width="3" stroke-linecap="round"/>';
+  }
+  function person(scarf, mouth) {
+    var s = '<rect x="-13" y="-20" width="10" height="20" fill="var(--coat)" stroke="var(--outline)" stroke-width="3"/>' +
+      '<rect x="3" y="-20" width="10" height="20" fill="var(--coat)" stroke="var(--outline)" stroke-width="3"/>' +
+      '<rect x="-17" y="-64" width="34" height="48" rx="11" fill="var(--coat)" stroke="var(--outline)" stroke-width="3"/>' +
+      '<circle cx="0" cy="-80" r="14" fill="var(--head)" stroke="var(--outline)" stroke-width="3"/>' +
+      '<circle cx="-5" cy="-82" r="2" fill="var(--outline)"/><circle cx="5" cy="-82" r="2" fill="var(--outline)"/>';
+    if (mouth) s += '<ellipse cx="0" cy="-74" rx="4" ry="3" fill="var(--outline)"/>';
+    if (scarf) s += '<rect x="-16" y="-69" width="32" height="10" rx="5" fill="var(--scarf)" stroke="var(--outline)" stroke-width="3"/>' +
+      '<polygon points="5,-62 15,-62 13,-36 4,-39" fill="var(--scarf)" stroke="var(--outline)" stroke-width="3" stroke-linejoin="round"/>';
+    return s;
+  }
+  var FIG = '<svg class="fig" viewBox="0 0 56 74" aria-hidden="true">' +
+    '<rect x="12" y="44" width="32" height="28" rx="10" fill="var(--town)" stroke="var(--outline)" stroke-width="2.5"/>' +
+    '<circle cx="28" cy="33" r="11" fill="var(--head)" stroke="var(--outline)" stroke-width="2.5"/>' +
+    '<polygon points="15,25 41,25 37,7 19,7" fill="var(--hat)" stroke="var(--outline)" stroke-width="2.5" stroke-linejoin="round"/>' +
+    '<line x1="12" y1="25" x2="44" y2="25" stroke="var(--outline)" stroke-width="3" stroke-linecap="round"/></svg>';
+  var SAY = { right: 'Blue.', slow: 'Green.', never: 'Blue!' };
+  var TXT = { sure: ['–', 'sure'], unsure: ['?', 'unsure'], sees: ['✓', 'leans green'], digs: ['x', 'digs in'] };
+
+  function initScene() {
+    $('#mina').innerHTML = person(true, true);
+    $('#priya').innerHTML = person(false, false);
+    var pips = '';
+    for (var i = 1; i <= 5; i++) pips += '<span class="pip" data-i="' + i + '"></span>';
+    $('#pips').innerHTML = pips;
+  }
+  function paintTown() {
+    var html = '';
+    for (var i = 0; i < N; i++) {
+      var p = pub(i), t = think(i);
+      html += '<li class="nb" aria-label="Person ' + (i + 1) + ' says ' + SAY[p] + ' and privately is ' + TXT[t][1] + '">' +
+        '<div class="say ' + p + '">' + SAY[p] + '</div>' + FIG +
+        '<div class="think"><div class="dot ' + t + '">' + TXT[t][0] + '</div><div class="tl">' + TXT[t][1] + '</div></div></li>';
+    }
+    $('#town').innerHTML = html;
+    var c = stats();
+    $('#stat').innerHTML = '<span>Out loud: ' + c.slow + ' of ' + N + ' say “green”</span><span>In private: ' + c.sees + ' lean green, ' + c.unsure + ' unsure' + (c.digs ? ', ' + c.digs + ' dug in' : '') + '</span>';
+  }
+  function paintPips() {
+    Array.prototype.forEach.call(document.querySelectorAll('.pip'), function (el) {
+      var i = +el.getAttribute('data-i');
+      var fin = S.screen === 'end' || i < S.day || (i === S.day && S.screen === 'result');
+      el.className = 'pip' + (fin ? ' done' : '') + (!fin && i === S.day ? ' now' : '');
+    });
+    $('#daylabel').textContent = S.day === 0 ? 'Before day 1' : (S.screen === 'end' ? 'Week over' : 'Day ' + S.day + ' of 5');
+  }
+  function paintScene() {
+    $('#priya').style.transform = 'translate(' + (S.alone ? 700 : 262) + 'px, 232px)';
+  }
+  function show(id) {
+    ['c-intro', 'c-priya', 'c-move', 'c-next'].forEach(function (k) { $('#' + k).hidden = (k !== id); });
+  }
+  function setNarr(t) { $('#narr').textContent = t; }
+  function setLine(t) { var on = !!t; $('#minaRow').hidden = !on; $('#minaLine').textContent = on ? '“' + t + '”' : ''; }
+
+  function renderMoves() {
+    var html = '';
+    MOVES.forEach(function (m) {
+      html += '<button type="button" class="move" data-id="' + m.id + '"><b>' + m.title + '</b><span>' + m.sub + '</span></button>';
+    });
+    $('#moves').innerHTML = html;
+    $('#moveQ').textContent = 'Day ' + S.day + ': what does Mina do?';
+  }
+  function beginDay() {
+    S.day++;
+    paintPips();
+    if (S.day === 2) {
+      S.screen = 'priya';
+      setLine('');
+      setNarr('Day 2. Priya, the other planted voice, catches your eye. “I could call it green with you.”');
+      show('c-priya');
+    } else {
+      S.screen = 'choose';
+      setLine('');
+      setNarr(S.day === 1
+        ? 'Day 1. The slide is blue and the room says so. Your job is to call it green. Priya, the second planted voice, waits and says nothing yet.'
+        : 'Day ' + S.day + '. Same room, same blue slide.');
+      renderMoves(); show('c-move');
+    }
+    paintPips();
+  }
+  function afterPriya(together) {
+    S.alone = !together;
+    if (together) S.togetherFrom = 2;
+    paintScene();
+    S.screen = 'choose';
+    $('#research').innerHTML = '';
+    setNarr(together
+      ? 'Priya steps up beside you, in a matching red scarf.'
+      : 'Priya nods and goes back to her seat. It is you against the room.');
+    renderMoves(); show('c-move');
+    if (together) {
+      $('#moveQ').textContent = 'Day 2: what do the two of you do?';
+    }
+  }
+  function resultNarr(id) {
+    var a = S.alone;
+    if (id === 'same') return a ? 'Same word, same spot. Heads shake: “That’s just Mina.”' : 'Two voices, one word. Nobody can put it down to one person’s eyesight.';
+    if (id === 'check') return a ? 'A few people glance at the slide, then at Mina, then quickly away.' : 'With two of you saying it, a few people really study the slide.';
+    if (id === 'push') return 'Arms fold. Some people lean in to argue. Others turn their backs.';
+    return '“Yesterday it was green, today it’s blue. She doesn’t even know what she thinks.”';
+  }
+  function choose(id) {
+    var m = MOVES.filter(function (x) { return x.id === id; })[0];
+    applyMove(id);
+    var line = id === 'switch' ? SWITCH_LINES[(S.switches - 1) % SWITCH_LINES.length] : m.line;
+    setLine(line);
+    setNarr(resultNarr(id));
+    paintTown();
+    var extra = '';
+    if (S.day === 2 && !S.alone) {
+      extra = '<p class="note">Why two voices? The 1969 minority was two people so the answer could not be blamed on one person’s eyesight or oddness, which is how a lone dissenter can be explained away (Moscovici et al., 1969, p. 367; Moscovici & Personnaz, 1980, p. 279).</p>';
+    }
+    if (S.day === 1 && S.alone) {
+      extra = '<p class="note">You are alone today. A lone voice can be put down to the person (“that’s just Mina”), which is why Moscovici’s team used two confederates (1969, p. 367).</p>';
+    }
+    $('#research').innerHTML = '<span class="eyebrow">What the research says</span><p>' + m.note + '</p>' + extra;
+    $('#next').textContent = S.day === 5 ? 'See the room after the week' : 'Next day';
+    S.screen = 'result';
+    paintPips();
+    show('c-next');
+  }
+
+  /* Ending */
+  function dayList(a) {
+    var s = a.map(function (x) { return String(x); });
+    if (s.length === 1) return 'Day ' + s[0];
+    return 'Days ' + s.slice(0, -1).join(', ') + ' and ' + s[s.length - 1];
+  }
+  function verdict(c) {
+    if (c.digs >= 3) return 'The room dug in.';
+    if (c.sees >= 4) return 'Most of the room still says “blue”, and a lot of it now leans green in private.';
+    if (c.sees + c.unsure === 0) return 'Nothing moved. The room still says blue and sees blue.';
+    return 'A few people are wondering. Almost nobody says so.';
+  }
+  function why(c) {
+    var L = [];
+    L.push(S.alone
+      ? 'You stood alone. Others could write you off as one person’s eyesight or quirk, which is why Moscovici’s team used two confederates.'
+      : 'Priya stood with you from Day 2, so it could not be put down to one person’s eyesight or quirk.');
+    var sw = [], pu = [], ck = [];
+    S.moves.forEach(function (m, i) { if (m === 'switch') sw.push(i + 1); if (m === 'push') pu.push(i + 1); if (m === 'check') ck.push(i + 1); });
+    if (sw.length) L.push('You changed the line on ' + dayList(sw) + '. In the 1969 study, confederates who varied their answers drew 1.25% green, close to the 0.25% of the control group.');
+    else L.push('You never changed the line. Consistency over time is the variable the 1969 study manipulated.');
+    if (pu.length) L.push('You turned up the pressure on ' + dayList(pu) + '.' + (c.digs ? ' ' + c.digs + (c.digs > 1 ? ' people' : ' person') + ' dug in.' : '') + ' The 1969 paper expects an uncompromising minority to push people either to concede or to polarize.');
+    if (ck.length) L.push('You asked people to check on ' + dayList(ck) + '. The 1980 paper argues that a persistent minority leads people to test its answer against the thing itself.');
+    if (c.sees > c.slow) L.push('Out loud, ' + c.slow + ' of ' + N + ' say “green”. In private, ' + c.sees + ' lean green. The 1980 study found the same split: spoken “green” answers rose only about 5% in both conditions, while the afterimage shifted only after a minority source.');
+    return L;
+  }
+  function recordRun(c) {
+    runs.push({ path: S.moves.map(function (m) { return MOVES.filter(function (x) { return x.id === m; })[0].tag; }).join(' '),
+      together: !S.alone, slow: c.slow, sees: c.sees, unsure: c.unsure, digs: c.digs });
+  }
+  function runsTable() {
+    if (!runs.length) return '';
+    var rows = runs.map(function (r, i) {
+      return '<tr><td class="n">' + (i + 1) + '</td><td class="n">' + r.path + '</td><td>' + (r.together ? 'Priya joined' : 'Alone') + '</td><td class="n">' + r.slow + '</td><td class="n">' + r.sees + '</td><td class="n">' + r.unsure + '</td><td class="n">' + r.digs + '</td></tr>';
+    }).join('');
+    return '<div class="card"><h2>Your runs</h2><p class="note">S same line, C same line and check, P pressure, W change the line. Try a different path and compare.</p>' +
+      '<div class="scroll"><table><thead><tr><th>Run</th><th>Five days</th><th>Day 2</th><th>Say “green”</th><th>Leans green</th><th>Unsure</th><th>Dug in</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+  function bar(label, val, text) {
+    return '<div class="brow"><div class="l"><span>' + label + '</span><span>' + text + '</span></div><div class="track"><i style="width:' + (val * 10) + '%"></i></div></div>';
+  }
+  function renderEnd() {
+    var c = stats();
+    recordRun(c);
+    var whyHtml = why(c).map(function (t) { return '<li>' + t + '</li>'; }).join('');
+    var h = '';
+    h += '<div class="card"><p class="eyebrow">One week later</p><div class="verdict">' + verdict(c) + '</div><ul class="why">' + whyHtml + '</ul>' +
+      '<div class="row"><button type="button" class="btn" id="again">Play again</button><button type="button" class="btn alt" id="clear">Next visitor</button></div></div>';
+    h += runsTable();
+    h += '<div class="cols">' +
+      '<div class="card"><h2>The 1969 lab version</h2><p>Six people judged 36 blue slides aloud. Two of them were confederates who called the slides green.</p><div class="bars">' +
+      bar('Control: no confederates', 0.25, '0.25% green') +
+      bar('Confederates vary: green 24, blue 12', 1.25, '1.25% green') +
+      bar('Confederates say green every time', 8.42, '8.42% green') +
+      '</div><div class="scale"><span>0%</span><span>5%</span><span>10%</span></div>' +
+      '<p class="note">Share of responses. The 8.42% comes from 128 participants in the two consistent-minority experiments; the control had 22. In the consistent condition 43.75% of groups had a participant who changed (four or more green answers) and 32% of individuals yielded. In the groups that were influenced, 18.70% of answers were green (Moscovici et al., 1969, p. 371).</p></div>' +
+      '<div class="card"><h2>The 1980 lab version</h2><p>A confederate called a blue slide green. Participants were told she spoke for either 18.2% (minority) or 81.8% (majority) of earlier people, then judged the slide aloud and privately rated the colour of the afterimage.</p>' +
+      '<ul class="plain"><li>Spoken “green” answers rose about 5%, from roughly five participants, with no difference between conditions (pp. 275–276).</li>' +
+      '<li>Only the minority-source group’s afterimage ratings shifted toward red-purple, and the shift was significant after the confederate left the room (pp. 276–277). The replication, with 14 per condition, found the same pattern (p. 278).</li>' +
+      '<li>No participant admitted being influenced (p. 277).</li></ul>' +
+      '<p class="note">The authors call this conversion, as opposed to compliance, the public going-along that a majority source mostly produced.</p></div></div>';
+    h += '<div class="card"><h2>Where this story flatters the minority</h2><ul class="plain">' +
+      '<li>Mina is wrong, on purpose: the slide is blue. So were the lab confederates, who called blue slides green and still moved some people. Consistency worked for a wrong answer too, so influence is not evidence of being right.</li>' +
+      '<li>The room’s numbers are a game. The rules (consistency, a second voice, checking, pressure) come from these papers, but the sizes of the effects are invented.</li>' +
+      '<li>The 1969 study used two confederates. The 1980 study used one and told participants how many earlier people agreed with her. Both used small samples of women students: 46 in the main 1980 study (18, 18 and 10 per condition) and 14 per condition in the replication.</li>' +
+      '<li>The 1980 authors call their results “more suggestive than … firmly established” (p. 274) and the afterimage “a labile phenomenon” (p. 279). A later replication by Doms and Van Avermaet confirmed the minority effect but also found an aftereffect in the majority condition once the confederate left (p. 281).</li>' +
+      '<li>Even so, the authors write: “There are limits to what the laboratory can say against reality” (p. 281).</li></ul></div>';
+    h += '<div class="card"><h2>From the blue slide to the 2026 midterms</h2><p>All 435 House seats and 35 Senate seats were on the ballot on 3 November 2026. Ask Mina’s four questions of any organised faction inside a party:</p>' +
+      '<ol class="why"><li>Does it say the same thing every time?</li><li>Is there more than one voice, so it cannot be put down to one person?</li><li>Are people checking the claim for themselves?</li><li>Is the change showing in private, in how people weigh the issue, before it shows in public?</li></ol>' +
+      '<div class="cols"><div><h3>The House Freedom Caucus</h3><p>A bloc of House conservatives formalised over a decade ago, built on the idea that rank-and-file members should drive policy, using parliamentary manoeuvres to win concessions. One of its founders now calls it a “chief cheering squad” for Trump, and at least 10 members are leaving, which raises the question of whether it still acts as an independent minority (<a href="https://www.wamc.org/2026-09-22/the-house-freedom-caucus-has-to-transform-it-could-preview-the-gops-post-trump-era" target="_blank" rel="noopener">NPR via WAMC, 2026</a>).</p></div>' +
+      '<div><h3>Populist insurgents in Democratic primaries</h3><p>David Barker argues that 2026 primary winners such as Randy Villegas and James Talarico use a near-identical “top versus bottom” economic message. He also notes that Sanders and Ocasio-Cortez endorsements produced nearly as many defeats as wins (<a href="https://www.brookings.edu/articles/democratic-insurgents-are-winning-on-economics-not-culture/" target="_blank" rel="noopener">Brookings, 2026</a>).</p></div></div>' +
+      '<p class="note">An election has no control town, millions of voters, money and media, and no colour judgement to measure. It can illustrate the mechanisms. It cannot show that any faction caused any result. Check both articles before you cite them; this page used summaries of them.</p></div>';
+    var end = $('#end');
+    end.innerHTML = h; end.hidden = false;
+    $('#again').addEventListener('click', replay);
+    $('#clear').addEventListener('click', function () { runs = []; replay(); });
+    show('none');
+    S.screen = 'end'; paintPips();
+    setLine(''); setNarr('The week is over. Scroll down to see what happened and what the research says.');
+    end.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  function replay() {
+    S = fresh();
+    $('#end').hidden = true; $('#end').innerHTML = '';
+    $('#research').innerHTML = '';
+    paintScene(); paintTown(); paintPips();
+    setLine(''); setNarr('The slide is blue. Everyone looks up and says so. Your job is to say green.');
+    show('c-intro');
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  $('#start').addEventListener('click', beginDay);
+  $('#yesP').addEventListener('click', function () { afterPriya(true); });
+  $('#noP').addEventListener('click', function () { afterPriya(false); });
+  $('#moves').addEventListener('click', function (e) { var b = e.target.closest('.move'); if (b) choose(b.getAttribute('data-id')); });
+  $('#next').addEventListener('click', function () { if (S.day === 5) renderEnd(); else beginDay(); });
+  $('#hideThoughts').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true';
+    this.setAttribute('aria-pressed', on ? 'true' : 'false');
+    this.textContent = on ? 'Show what they think' : 'Hide what they think';
+    $('#town').classList.toggle('hide', on);
+  });
+
+  initScene();
+  replay();
+})();
+</script>
+
+</body></html>
